@@ -153,12 +153,41 @@ SIMPLE_JWT = {
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
 }
 
-# CORS Settings
+# Cache Configuration (for OTP storage)
+# Using in-memory cache for development (no Redis required)
+# For production, switch to Redis for better performance and persistence across server restarts
+if DEBUG:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'otp-cache',
+            'TIMEOUT': 120,  # Default timeout for cache entries (2 minutes)
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': f"redis://{os.getenv('REDIS_HOST', '127.0.0.1')}:6379/1",
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            },
+            'TIMEOUT': 120,
+        }
+    }
+
+# CORS Settings (for React frontend)
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
+    "http://localhost:3000",  # Create React App default
+    "http://localhost:3001",
+    "http://localhost:3003",
+    "http://localhost:3002",  # Custom React port
+    "http://localhost:5173",  # Vite development server
     "http://localhost:8000",
+    "http://localhost:6397",
 ]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Allow all origins in development
 
 # Channels Configuration
 CHANNEL_LAYERS = {
@@ -179,10 +208,14 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@servicehub.com')
 
-# SMS Configuration (Twilio)
-TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
-TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
-TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER', '')
+# Google OAuth Configuration
+GOOGLE_OAUTH_CLIENT_ID = os.getenv('GOOGLE_OAUTH_CLIENT_ID', '')
+GOOGLE_OAUTH_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET', '')
+
+# SMS Configuration (BulkSMS BD)
+BULKSMS_API_KEY = os.getenv('BULKSMS_API_KEY', 'hYMFUDHeRp6chuAINbkZ')
+BULKSMS_SENDER_ID = os.getenv('BULKSMS_SENDER_ID', '8809617627045')
+BULKSMS_API_URL = os.getenv('BULKSMS_API_URL', 'http://bulksmsbd.net/api/smsapi')
 
 # Payment Gateway (Stripe)
 STRIPE_PUBLIC_KEY = os.getenv('STRIPE_PUBLIC_KEY', '')

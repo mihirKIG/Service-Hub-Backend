@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ServiceHub API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .info {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .otp-display {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+            background: #fff3cd;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .response-box {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+        .step {
+            display: none;
+        }
+        .step.active {
+            display: block;
+        }
+        .back-btn {
+            background: #666;
+        }
+        .back-btn:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ServiceHub API Test</h1>
+        <p class="subtitle">Test your backend authentication API</p>
+
+        <div class="info">
+            <strong>API Endpoint:</strong> http://127.0.0.1:8000/api/users/<br>
+            <strong>Status:</strong> <span id="server-status">Checking...</span>
+        </div>
+
+        <div id="error-msg" class="error"></div>
+        <div id="success-msg" class="success"></div>
+
+        <!-- Step 1: Send OTP -->
+        <div id="step-phone" class="step active">
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input 
+                    type="tel" 
+                    id="phone" 
+                    placeholder="+801719159900" 
+                    value="+801719159900"
+                />
+            </div>
+            <button id="send-otp-btn">Send OTP</button>
+        </div>
+
+        <!-- Step 2: Verify OTP -->
+        <div id="step-otp" class="step">
+            <div class="otp-display" id="otp-display"></div>
+            <div class="form-group">
+                <label for="otp">Enter OTP</label>
+                <input 
+                    type="text" 
+                    id="otp" 
+                    placeholder="6-digit code" 
+                    maxlength="6"
+                />
+            </div>
+            <button id="verify-otp-btn">Verify OTP & Login</button>
+            <button id="back-btn" class="back-btn">Change Phone Number</button>
+        </div>
+
+        <!-- Step 3: Success -->
+        <div id="step-success" class="step">
+            <div class="success" style="display: block;">
+                ✅ Authentication Successful!
+            </div>
+            <div id="user-info" style="margin-bottom: 15px;"></div>
+            <div id="token-info" style="font-size: 12px; color: #666;"></div>
+            <button id="test-profile-btn">Test Get Profile</button>
+            <button id="restart-btn" class="back-btn">Test Again</button>
+        </div>
+
+        <div id="response-box" class="response-box"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000/api/users';
+        let currentPhone = '';
+        let currentOTP = '';
+        let accessToken = '';
+        let refreshToken = '';
+
+        // UI Helper Functions
+        function showError(message) {
+            const errorEl = document.getElementById('error-msg');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('success-msg');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+            setTimeout(() => {
+                successEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function showResponse(data) {
+            const responseBox = document.getElementById('response-box');
+            responseBox.textContent = JSON.stringify(data, null, 2);
+            responseBox.style.display = 'block';
+        }
+
+        function showStep(stepId) {
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active');
+            });
+            document.getElementById(stepId).classList.add('active');
+        }
+
+        // Check server status
+        async function checkServerStatus() {
+            const statusEl = document.getElementById('server-status');
+            try {
+                const response = await fetch(`${API_BASE}/send-otp/`, {
+                    method: 'OPTIONS'
+                });
+                if (response.ok || response.status === 405) {
+                    statusEl.textContent = '✅ Online';
+                    statusEl.style.color = '#2e7d32';
+                } else {
+                    statusEl.textContent = '❌ Offline';
+                    statusEl.style.color = '#c62828';
+                }
+            } catch (error) {
+                statusEl.textContent = '❌ Cannot connect';
+                statusEl.style.color = '#c62828';
+            }
+        }
+
+        // API Functions
+        async function sendOTP(phone) {
+            try {
+                document.getElementById('send-otp-btn').disabled = true;
+                document.getElementById('send-otp-btn').textContent = 'Sending...';
+
+                const response = await fetch(`${API_BASE}/send-otp/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phone })
+                });
+
+                const data = await response.json();
+                showResponse(data);
+
+                if (response.ok) {
+                    currentPhone = phone;
+                    currentOTP = data.otp;
+                    document.getElementById('otp-display').textContent = `Dev OTP: ${data.otp}`;
+                    document.getElementById('otp').value = data.otp;
+                    showSuccess('OTP sent successfully!');
+                    showStep('step-otp');
+                } else {
+                    showError(data.error || 'Failed to send OTP');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+                console.error('Error:', error);
+            } finally {
+                document.getElementById('send-otp-btn').disabled = false;
+                document.getElementById('send-otp-btn').textContent = 'Send OTP';
+            }
+        }
+
+        async function verifyOTP(phone, otp) {
+            try {
+                document.getElementById('verify-otp-btn').disabled = true;
+                document.getElementById('verify-otp-btn').textContent = 'Verifying...';
+
+                const response = await fetch(`${API_BASE}/verify-otp/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phone, otp })
+                });
+
+                const data = await response.json();
+                showResponse(data);
+
+                if (response.ok) {
+                    accessToken = data.access;
+                    refreshToken = data.refresh;
+                    
+                    // Display user info
+                    const userInfoEl = document.getElementById('user-info');
+                    userInfoEl.innerHTML = `
+                        <h3>User Information:</h3>
+                        <p><strong>Phone:</strong> ${data.user.phone}</p>
+                        <p><strong>Email:</strong> ${data.user.email || 'Not provided'}</p>
+                        <p><strong>Name:</strong> ${data.user.first_name} ${data.user.last_name}</p>
+                        <p><strong>Verified:</strong> ${data.user.is_verified ? '✅ Yes' : '❌ No'}</p>
+                        <p><strong>New User:</strong> ${data.is_new_user ? 'Yes' : 'No'}</p>
+                    `;
+
+                    const tokenInfoEl = document.getElementById('token-info');
+                    tokenInfoEl.innerHTML = `
+                        <p><strong>Access Token:</strong> ${accessToken.substring(0, 50)}...</p>
+                        <p><strong>Refresh Token:</strong> ${refreshToken.substring(0, 50)}...</p>
+                    `;
+
+                    showSuccess('Login successful!');
+                    showStep('step-success');
+                } else {
+                    showError(data.error || 'Failed to verify OTP');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+                console.error('Error:', error);
+            } finally {
+                document.getElementById('verify-otp-btn').disabled = false;
+                document.getElementById('verify-otp-btn').textContent = 'Verify OTP & Login';
+            }
+        }
+
+        async function getUserProfile() {
+            try {
+                document.getElementById('test-profile-btn').disabled = true;
+                document.getElementById('test-profile-btn').textContent = 'Loading...';
+
+                const response = await fetch(`${API_BASE}/profile/`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                showResponse(data);
+
+                if (response.ok) {
+                    showSuccess('Profile retrieved successfully!');
+                } else {
+                    showError('Failed to get profile');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+                console.error('Error:', error);
+            } finally {
+                document.getElementById('test-profile-btn').disabled = false;
+                document.getElementById('test-profile-btn').textContent = 'Test Get Profile';
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('send-otp-btn').addEventListener('click', () => {
+            const phone = document.getElementById('phone').value;
+            if (!phone) {
+                showError('Please enter a phone number');
+                return;
+            }
+            sendOTP(phone);
+        });
+
+        document.getElementById('verify-otp-btn').addEventListener('click', () => {
+            const otp = document.getElementById('otp').value;
+            if (!otp || otp.length !== 6) {
+                showError('Please enter a 6-digit OTP');
+                return;
+            }
+            verifyOTP(currentPhone, otp);
+        });
+
+        document.getElementById('test-profile-btn').addEventListener('click', () => {
+            getUserProfile();
+        });
+
+        document.getElementById('back-btn').addEventListener('click', () => {
+            showStep('step-phone');
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            document.getElementById('phone').value = '+801719159900';
+            document.getElementById('otp').value = '';
+            accessToken = '';
+            refreshToken = '';
+            showStep('step-phone');
+        });
+
+        // Initialize
+        checkServerStatus();
+    </script>
+</body>
+</html>
