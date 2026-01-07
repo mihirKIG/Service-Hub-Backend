@@ -13,7 +13,7 @@ class ServiceCategoryAdmin(admin.ModelAdmin):
 class ProviderAdmin(admin.ModelAdmin):
     list_display = ('business_name', 'user', 'status', 'city', 'hourly_rate', 'average_rating', 'is_available')
     list_filter = ('status', 'is_available', 'city', 'state')
-    search_fields = ('business_name', 'user__email', 'city')
+    search_fields = ('business_name', 'user__phone', 'user__email', 'city')
     filter_horizontal = ('categories',)
     readonly_fields = ('average_rating', 'total_reviews', 'total_bookings', 'completed_bookings')
 

@@ -7,16 +7,19 @@ from django.utils import timezone
 class UserManager(BaseUserManager):
     """Custom user manager for phone-based authentication"""
     
-    def create_user(self, phone, **extra_fields):
+    def create_user(self, phone, password=None, **extra_fields):
         if not phone:
             raise ValueError('Phone number is required')
         
         user = self.model(phone=phone, **extra_fields)
-        user.set_unusable_password()  # No password needed
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()  # No password needed for OTP/Google auth
         user.save(using=self._db)
         return user
     
-    def create_superuser(self, phone, **extra_fields):
+    def create_superuser(self, phone, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_verified', True)
@@ -26,7 +29,10 @@ class UserManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser must have is_superuser=True')
         
-        return self.create_user(phone, **extra_fields)
+        if not password:
+            raise ValueError('Superuser must have a password')
+        
+        return self.create_user(phone, password=password, **extra_fields)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -76,7 +82,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         ]
     
     def __str__(self):
-        return self.phone
+        if self.phone:
+            return self.phone
+        elif self.email:
+            return self.email
+        elif self.first_name or self.last_name:
+            return f"{self.first_name} {self.last_name}".strip()
+        else:
+            return f"User #{self.pk}" if self.pk else "New User"
     
     @property
     def full_name(self):

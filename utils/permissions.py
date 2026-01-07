@@ -56,12 +56,19 @@ class IsCustomerOrProvider(permissions.BasePermission):
 
 class IsProviderOwner(permissions.BasePermission):
     """
-    Permission to only allow provider to edit their own profile
+    Permission to only allow provider to edit their own profile or services
     """
     
     def has_object_permission(self, request, view, obj):
-        # Check if the user is the owner of the provider profile
-        return obj.user == request.user
+        # For Provider model
+        if hasattr(obj, 'user'):
+            return obj.user == request.user
+        
+        # For Service model (check if user owns the provider)
+        if hasattr(obj, 'provider'):
+            return hasattr(request.user, 'provider_profile') and obj.provider == request.user.provider_profile
+        
+        return False
 
 
 class IsReviewOwner(permissions.BasePermission):

@@ -75,7 +75,8 @@ class Provider(models.Model):
         ordering = ['-average_rating', '-created_at']
     
     def __str__(self):
-        return f"{self.business_name} - {self.user.email}"
+        user_identifier = self.user.email or self.user.phone or f"User #{self.user.pk}"
+        return f"{self.business_name} - {user_identifier}"
     
     @property
     def completion_rate(self):

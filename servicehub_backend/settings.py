@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'channels',
     'drf_yasg',
+    'django_filters',
     
     # Local apps
     'users',
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
     'reviews',
     'notifications',
     'chat',
+    'services',
 ]
 
 MIDDLEWARE = [
